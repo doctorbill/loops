@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# To set everything up, do pip3 install -r ./requirements.txt
+
 # Find loopable regions of audio
 # Good examples:
 # ./loops.py -i 'https://www.youtube.com/watch?v=fHI8X4OXluQ'
