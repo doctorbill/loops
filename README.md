@@ -1,2 +1,2 @@
 # loops
-Find nice loopable regions of songs
+Find loopable regions of audio files
