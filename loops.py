@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 
 # Find loopable regions of audio
+# Good examples:
+# ./loops.py -i 'https://www.youtube.com/watch?v=fHI8X4OXluQ'
+#     Pretty basic, but does a great job!
+# ./loops.py -i 'https://www.youtube.com/watch?v=T0_zzCLLRvE'
+#     I especially like this one because it finds a completely seemless loop with an odd number of beats!
+# ./loops.py -i 'https://www.youtube.com/watch?v=fJ9rUzIMcZQ'
+#     Pretty great/funny!
+# ./loops.py -i 'https://www.youtube.com/watch?v=N_3_skKeGCc'
+#     I think it does a nice job, given how little rhythmic information there is in the source.
 
-import sys
-import sounds
-import time
 import argparse
+import sys
+import time
+
+import sounds
 
 parser = argparse.ArgumentParser(description="Find loopable regions in audio")
 parser.add_argument("--click", help="Add a click track to outputs", action="store_true")
@@ -53,9 +63,10 @@ for s in sources:
                                                   max_duration=max_duration,
                                                   skip=skip)
     for n, loop in enumerate(loops[:5]): # Best 5 loops
-        print(f'Loop {n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, bpm={loop.clip.bpm:.2f}, duration={loop.clip.duration:.2f}s')
-        repeats = 3
-        sounds.AudioClip.append([loop.clip] * repeats).save(f'{s.name}-{n+1}-{round(loop.beats)}beats.wav', with_click_track=args.click)
+        filename = f'{s.name}-{n+1}-{round(loop.beats)}beats.wav'
+        print(f'Loop {n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, bpm={loop.clip.bpm:.2f}, duration={loop.clip.duration:.2f}s -> {filename}')
+        repeats = 3 # Change this to make each output loop longer!
+        sounds.AudioClip.append([loop.clip] * repeats).save(filename, with_click_track=args.click)
     ended = time.time()
     print(f'Finished in {sounds.pretty_time_delta(ended-started)}.')
     s = s.unload()
