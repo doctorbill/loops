@@ -56,7 +56,7 @@ for s in sources:
     max_duration = 20 # Longest loop duration (seconds)
     started = time.time()
     positive_energy_starts, positive_energy_ends = s.start_and_end_of_positive_energy()
-    print(f'Positive energy region: {sounds.pretty_time_delta(positive_energy_starts)} -> {sounds.pretty_time_delta(positive_energy_ends)}')
+    print(f'Positive energy: {sounds.pretty_time_delta(positive_energy_starts)} -> {sounds.pretty_time_delta(positive_energy_ends)}')
     print('Finding best loopable regions...')
     loops = s.find_loopable_regions_by_beat_count(after=positive_energy_starts,
                                                   before=positive_energy_ends,
@@ -64,8 +64,8 @@ for s in sources:
                                                   skip=skip)
     for n, loop in enumerate(loops[:5]): # Best 5 loops
         filename = f'{s.name}-{n+1}-{round(loop.beats)}beats.wav'
-        print(f'Loop {n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, bpm={loop.clip.bpm:.2f}, duration={loop.clip.duration:.2f}s -> {filename}')
-        repeats = 3 # Change this to make each output loop longer!
+        print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s -> {filename}')
+        repeats = 3 # Change this to make each output loop longer or shorter
         sounds.AudioClip.append([loop.clip] * repeats).save(filename, with_click_track=args.click)
     ended = time.time()
     print(f'Finished in {sounds.pretty_time_delta(ended-started)}.')
