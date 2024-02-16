@@ -1,0 +1,8 @@
+librosa
+matplotlib
+mutagen
+numpy
+PySoundFile
+scikit-image
+soundfile
+yt_dlp
