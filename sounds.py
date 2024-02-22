@@ -56,7 +56,8 @@ ydl_opts = {
 
 class AudioClip:
     """Represents a clip of audio."""
-    def __init__(self, source=None, data=None, name=None, bpm=None, is_slice=False, dirty=False):
+    def __init__(self, source=None, data=None, name=None, bpm=None, is_slice=False, dirty=False, samplerate=None):
+        self.samplerate = samplerate or 44100
         self.source = source
         self.name = name or (self.source or 'unknown').split('/')[-1].split('.')[0]
         if data is not None:
@@ -68,7 +69,7 @@ class AudioClip:
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         error_code = ydl.download([self.source])
                 self.source = cached
-            self._data = librosa.load(self.source, sr=44100, mono=False)[0]
+            self._data = librosa.load(self.source, sr=self.samplerate, mono=False)[0]
             try:
                 self.name = mutagen.File(self.source).tags['TIT2'].text[0].replace(' (Official Video)', '').replace(' (Official Audio)', '')
             except:
@@ -78,7 +79,7 @@ class AudioClip:
             self._data = np.array([self._data, self._data])
         # bpm can be a number, or a pair of numnbers (start_bpm, end_bpm).
         self.bpm = bpm or np.mean(librosa.feature.tempo(y=self._data, sr=44100)) # Average of all channels.
-        self.duration = self._data.shape[1]/44100
+        self.duration = self._data.shape[1]/self.samplerate
         self.cached_spectrogram = None
         self.is_slice = is_slice
         self.dirty = dirty or False
@@ -90,7 +91,7 @@ class AudioClip:
 
     def reload(self):
         if not self.dirty:
-            self._data = librosa.load(self.source, sr=44100, mono=False)[0]
+            self._data = librosa.load(self.source, sr=self.samplerate, mono=False)[0]
         return self
 
     def copy(self):
@@ -98,8 +99,11 @@ class AudioClip:
 
     @classmethod
     def mix(cls, clips_and_offsets):
+        # Ensure clips are all the same sample rate
+        if not 1 == len(set([c.samplerate for c, offset in clips_and_offsets])):
+            raise Exception("cannot mix AudioClips with different sample rates")
         # Mix a list of clips together, padding the start of each clip with silence so that it starts at a given offset time (in seconds).
-        padded_clips = [np.pad(c._data, ((0, 0), (round(offset*44100), 0)), 'constant') for c, offset in clips_and_offsets]
+        padded_clips = [np.pad(c._data, ((0, 0), (round(offset*c.samplerate), 0)), 'constant') for c, offset in clips_and_offsets]
         # Also pad ends of clips, to make them all the same shape...
         length = max([c.shape[1] for c in padded_clips])
         padded_clips = [np.pad(c, ((0, 0), (0, length-c.shape[1])), 'constant') for c in padded_clips]
@@ -124,25 +128,25 @@ class AudioClip:
 
     def save(self, path, with_click_track=False):
         if with_click_track:
-            tempo, click_times = librosa.beat.beat_track(y=librosa.to_mono(self._data), sr=44100, units='time', start_bpm=self.bpm)
+            tempo, click_times = librosa.beat.beat_track(y=librosa.to_mono(self._data), sr=self.samplerate, units='time', start_bpm=self.bpm)
             # print(f'Tempo = {tempo:.3f}s')
-            AudioClip.mix([[self, 0], [AudioClip(data=librosa.clicks(times=click_times, sr=44100)), 0]]).save(path)
+            AudioClip.mix([[self, 0], [AudioClip(data=librosa.clicks(times=click_times, sr=self.samplerate)), 0]]).save(path)
         else:
-            return sf.write(path, np.transpose(self._data), 44100)
+            return sf.write(path, np.transpose(self._data), self.samplerate)
 
     def slice(self, start=0, end=-1, duration=-1):
         if end == -1 and duration != -1:
             end = start + duration
-        start *= 44100
+        start *= self.samplerate
         if end != -1:
-            end *= 44100
+            end *= self.samplerate
         clip = AudioClip(data=self._data[:, round(start):round(end)], bpm=self.bpm, is_slice=True, dirty=True)
         return clip
 
     def spectrogram(self, fft_hop_length=512, n_fft=2048):
         if self.cached_spectrogram is None:
             D = np.abs(librosa.stft(y=librosa.to_mono(self._data), hop_length=fft_hop_length, n_fft=n_fft))**2
-            self.cached_spectrogram = librosa.power_to_db(librosa.feature.melspectrogram(S=D, sr=44100, hop_length=fft_hop_length, n_fft=n_fft), ref=np.max)
+            self.cached_spectrogram = librosa.power_to_db(librosa.feature.melspectrogram(S=D, sr=self.samplerate, hop_length=fft_hop_length, n_fft=n_fft), ref=np.max)
         return self.cached_spectrogram
 
     def energy(self, smooth=True):
@@ -166,19 +170,19 @@ class AudioClip:
             start += 1
         while energy[end] < 0:
             end -= 1
-        return librosa.frames_to_time(start, sr=44100, hop_length=512), librosa.frames_to_time(end, sr=44100, hop_length=512)
+        return librosa.frames_to_time(start, sr=self.samplerate, hop_length=512), librosa.frames_to_time(end, sr=self.samplerate, hop_length=512)
 
     def display(self, fft_hop_length=512, n_fft=2048):
         sg = self.spectrogram(fft_hop_length=fft_hop_length, n_fft=n_fft)
         energy = self.energy()
         fig, ax = plt.subplots(nrows=2, sharex=True)
-        times = librosa.times_like(energy, sr=44100)
+        times = librosa.times_like(energy, sr=self.samplerate)
         ax[0].plot(times, energy, label='Energy')
         ax[0].set(xticks=[])
         ax[0].legend()
         ax[0].label_outer()
         ax[0].axhline(y=0, color='r')
-        img = librosa.display.specshow(sg, y_axis='mel', x_axis='time', ax=ax[1], sr=44100)
+        img = librosa.display.specshow(sg, y_axis='mel', x_axis='time', ax=ax[1], sr=self.samplerate)
         ax[1].set_title('Power spectrogram')
         fig.colorbar(img, ax=ax, format="%+2.0f dB")
         plt.show()
@@ -187,7 +191,7 @@ class AudioClip:
         # Find the best offset of other in self, using normalized cross-correlation.
         matches = match_template(self.spectrogram(fft_hop_length=fft_hop_length, n_fft=n_fft), other.spectrogram(fft_hop_length=fft_hop_length, n_fft=n_fft))[0]
         best = np.argmax(matches)
-        best_time = librosa.frames_to_time(best, sr=44100, hop_length=fft_hop_length)
+        best_time = librosa.frames_to_time(best, sr=self.samplerate, hop_length=fft_hop_length)
         return (best_time, matches[best], other)
 
     def find_loopable_regions_by_beat_count(self, max_duration=30, after=0, before=None, skip=0.5):
@@ -208,7 +212,7 @@ class AudioClip:
         latest_start = min(int(self.duration - max_duration - compare_duration), int(before))
         _energy = self.energy()
         for loop_start in np.arange(earliest_start, latest_start, skip):
-            if _energy[librosa.time_to_frames(loop_start, sr=44100)] > 0:
+            if _energy[librosa.time_to_frames(loop_start, sr=self.samplerate)] > 0:
                 loop_clip = self.slice(start=loop_start, duration=compare_duration)
                 offset, score, _ = self.slice(start=loop_start+compare_duration, duration=max_duration+compare_duration).best_offset_of(loop_clip)
                 loop_found_at = loop_start+compare_duration+offset
