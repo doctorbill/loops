@@ -206,8 +206,9 @@ class AudioClip:
         before = before or self.duration
         earliest_start = int(after+0.5)
         latest_start = min(int(self.duration - max_duration - compare_duration), int(before))
+        _energy = self.energy()
         for loop_start in np.arange(earliest_start, latest_start, skip):
-            if self.energy()[librosa.time_to_frames(loop_start, sr=44100)] > 0:
+            if _energy[librosa.time_to_frames(loop_start, sr=44100)] > 0:
                 loop_clip = self.slice(start=loop_start, duration=compare_duration)
                 offset, score, _ = self.slice(start=loop_start+compare_duration, duration=max_duration+compare_duration).best_offset_of(loop_clip)
                 loop_found_at = loop_start+compare_duration+offset
