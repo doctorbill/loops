@@ -16,6 +16,7 @@
 import argparse
 import sys
 import time
+import os
 
 import sounds
 
@@ -27,6 +28,7 @@ parser.add_argument("--fast", help="Spend less time processing (for probably wor
 parser.add_argument("--fastest", help="Spend much less time processing (for probably much worse results)", action="store_true")
 parser.add_argument("--display", help="Display some helpful debugging information for each source", action="store_true")
 parser.add_argument("-i", "--input", help="Input files or urls", required=True, nargs="+")
+parser.add_argument("--output-dir", help="Output directory for loops", default="." )
 args = parser.parse_args()
 
 skip = 0.5
@@ -45,6 +47,15 @@ if args.display:
         print(f'  {s.name}: {s.bpm:.2f} bpm')
         s.display()
     sys.exit()
+
+if not os.path.exists(args.output_dir):
+    print(f'Output directory `{args.output_dir}` does not exist, creating...')
+    os.makedirs(args.output_dir)
+elif not os.access(args.output_dir, os.W_OK):
+    # not able to write to output dir
+    print(f'Unable to write to `{args.output_dir}`, exiting...')
+    sys.exit(1)
+
 
 sources = [sounds.AudioClip(f).unload() for f in args.input]
 
@@ -65,8 +76,8 @@ for s in sources:
                                                   max_duration=max_duration,
                                                   skip=skip)
     for n, loop in enumerate(loops[:5]): # Best 5 loops
-        filename = f'{s.name}-{n+1}-{round(loop.beats)}beats.wav'
-        print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s -> {filename}')
+        filename = f'{args.output_dir}/{s.name}-{n+1}-{round(loop.beats)}beats.wav'
+        print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s, start={sounds.pretty_time_delta(loop.start)} -> {filename}')
         repeats = 3 # Change this to make each output loop longer or shorter
         sounds.AudioClip.append([loop.clip] * repeats).save(filename, with_click_track=args.click)
     ended = time.time()
