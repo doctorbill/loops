@@ -76,13 +76,8 @@ for s in sources:
                                                   max_duration=max_duration,
                                                   skip=skip)
     for n, loop in enumerate(loops[:5]): # Best 5 loops
-<<<<<<< Updated upstream
         filename = f'{args.output_dir}/{s.name}-{n+1}-{round(loop.beats)}beats.wav'
-        print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s -> {filename}')
-=======
-        filename = f'{s.name}-{n+1}-{round(loop.beats)}beats.wav'
         print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s, start={sounds.pretty_time_delta(loop.start)} -> {filename}')
->>>>>>> Stashed changes
         repeats = 3 # Change this to make each output loop longer or shorter
         sounds.AudioClip.append([loop.clip] * repeats).save(filename, with_click_track=args.click)
     ended = time.time()
