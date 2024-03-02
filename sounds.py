@@ -143,14 +143,23 @@ class AudioClip:
         clip = AudioClip(data=self._data[:, round(start):round(end)], bpm=self.bpm, is_slice=True, dirty=True)
         return clip
 
+    def rewrap(self):
+        # Make a new clip, starting at the highest-energy point of this clip.
+        # Note that this new clip will generally NOT be a slice of the original song! We are re-ordering two slices of the original song to make this new clip.
+        # First find the time of highest energy. We can safely ignore the slice warning because we don't care about the global song energy in this context.
+        t_max = librosa.frames_to_time(np.argmax(self.energy(warn_slice=False)), sr=self.samplerate, hop_length=512)
+        before = self.slice(start=0, end=t_max)
+        after = self.slice(start=t_max)
+        return AudioClip.append([after, before])
+
     def spectrogram(self, fft_hop_length=512, n_fft=2048):
         if self.cached_spectrogram is None:
             D = np.abs(librosa.stft(y=librosa.to_mono(self._data), hop_length=fft_hop_length, n_fft=n_fft))**2
             self.cached_spectrogram = librosa.power_to_db(librosa.feature.melspectrogram(S=D, sr=self.samplerate, hop_length=fft_hop_length, n_fft=n_fft), ref=np.max)
         return self.cached_spectrogram
 
-    def energy(self, smooth=True):
-        if self.is_slice:
+    def energy(self, smooth=True, warn_slice=True):
+        if self.is_slice and warn_slice:
             print('WARNING: energy() called on a clip that is a slice. This is probably wrong.')
         sg = self.spectrogram()
         global_average_db = np.mean(sg)

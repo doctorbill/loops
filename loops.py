@@ -79,7 +79,7 @@ for s in sources:
         filename = f'{args.output_dir}/{s.name}-{n+1}-{round(loop.beats)}beats.wav'
         print(f'{n+1}: score={loop.score:.3f}, beats={loop.beats:.1f}, duration={loop.clip.duration:.2f}s, start={sounds.pretty_time_delta(loop.start)} -> {filename}')
         repeats = 3 # Change this to make each output loop longer or shorter
-        sounds.AudioClip.append([loop.clip] * repeats).save(filename, with_click_track=args.click)
+        sounds.AudioClip.append([loop.clip.rewrap()] * repeats).save(filename, with_click_track=args.click)
     ended = time.time()
     print(f'Finished in {sounds.pretty_time_delta(ended-started)}.')
     s = s.unload()
